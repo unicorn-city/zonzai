@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const page_size = 65536;
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -22,24 +24,16 @@ pub fn build(b: *std.Build) void {
     });
     exe.rdynamic = true;
     exe.entry = .disabled;
-    exe.use_llvm = false;
-    exe.use_lld = false;
+    // exe.use_llvm = false;
+    // exe.use_lld = false;
+
+    // exe.stack_size = 65536; // 1 page = 64kB
+    // exe.import_memory = true; // import linear memory from the environment
+    // exe.initial_memory = 2 * page_size; // initial size of the linear memory (1 page = 64kB)
+    // exe.max_memory = 2 * page_size; // maximum size of the linear memory
+    // exe.global_base = 100000; // offset in linear memory to place global data
 
     const install = b.addInstallArtifact(exe, .{});
     install.step.dependOn(&exe.step);
     b.default_step.dependOn(&install.step);
-
-    // const lib_unit_tests = b.addTest(.{
-    //     .root_source_file = .{ .path = "src/main.zig" },
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-
-    // const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    // // Similar to creating the run step earlier, this exposes a `test` step to
-    // // the `zig build --help` menu, providing a way for the user to request
-    // // running the unit tests.
-    // const test_step = b.step("test", "Run unit tests");
-    // test_step.dependOn(&run_lib_unit_tests.step);
 }
