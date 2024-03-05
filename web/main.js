@@ -15,6 +15,11 @@ let lastFpsUpdateMS = new Date().getTime()
 let prevFrameIntervals = []
 
 const fpsElement = document.getElementById("fps")
+const pauseBtnElement = document.getElementById("pauseBtn")
+
+pauseBtnElement.addEventListener("click", () => {
+  instance.exports.pause()
+})
 
 const setCanvasDimensions = () => {
   canvas.width = window.innerWidth
@@ -26,7 +31,7 @@ const setCanvasDimensions = () => {
 window.addEventListener("resize", setCanvasDimensions)
 
 const memory = new WebAssembly.Memory({
-  initial: 65536,
+  initial: 1000,
   maximum: 65536,
 })
 
@@ -42,12 +47,25 @@ WebAssembly.instantiateStreaming(fetch("./bin/zonzai.wasm"), {
   canvasContext = canvas.getContext("2d")
   setCanvasDimensions()
 
-  instance.exports.set_rand_seed(BigInt(new Date().getTime()))
+  let mousedown = false
 
-  instance.exports.init()
+  canvas.addEventListener("mousedown", (e) => {
+    mousedown = true
+    instance.exports.mouse_click(e.x, canvas.height - e.y)
+  })
+  canvas.addEventListener("mouseup", (e) => {
+    mousedown = false
+  })
+  canvas.addEventListener("mousemove", (e) => {
+    if (mousedown) {
+      instance.exports.mouse_click(e.x, canvas.height - e.y)
+    }
+  })
+
+  instance.exports.setup()
 
   const draw = () => {
-    instance.exports.grow_tree()
+    instance.exports.draw()
 
     const outputPointer = instance.exports.get_output_buffer_pointer()
 
@@ -59,7 +77,6 @@ WebAssembly.instantiateStreaming(fetch("./bin/zonzai.wasm"), {
     if (imageDataArray.length <= canvasImageData.data.length)
       canvasImageData.data.set(imageDataArray)
 
-    canvasContext.clearRect(0, 0, canvas.width, canvas.height)
     canvasContext.putImageData(canvasImageData, 0, 0)
 
     let newFrameTime = performance.now()

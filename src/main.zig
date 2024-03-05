@@ -1,198 +1,137 @@
 const std = @import("std");
 
-const Vec3 = struct { x: f32, y: f32, z: f32 };
 const Color = struct { r: u8, g: u8, b: u8, a: u8 };
-
-const NO_CELL: u8 = 0;
-const BRANCH_CELL: u8 = 1;
-const LEAF_CELL: u8 = 2;
-
-// const Branch = struct {
-//     parent: ?*Branch,
-//     length: f32,
-//     max_length: f32,
-//     diameter: f32,
-//     direction: Vec3,
-//     growth_rate: f32,
-//     children: std.ArrayList(*Branch),
-//     leaves: std.ArrayList(Leaf),
-// };
-
-// const Leaf = struct {
-//     size: f32,
-//     position: f32,
-//     color: Color,
-// };
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
-// var trunk: Branch = Branch{ .parent = null, .length = 0.1, .max_length = 150, .diameter = 0.1, .direction = Vec3{ .x = 0, .y = 0, .z = 1 }, .growth_rate = 1, .children = std.ArrayList(*Branch).init(allocator), .leaves = std.ArrayList(Leaf).init(allocator) };
-
 const MAX_WIDTH = 4096;
 const MAX_HEIGHT = 4096;
 
-var SCENE_BUFFER = [_:0]u8{0} ** (MAX_WIDTH * MAX_HEIGHT);
+const CELL_SIZE = 5;
 
 const OUTPUT_BUFFER_SIZE: u32 = MAX_WIDTH * MAX_HEIGHT * 4;
 var OUTPUT_BUFFER = [_:0]u8{0} ** OUTPUT_BUFFER_SIZE;
 
+var SCENE_BUFFER = [_:0]u8{0} ** (MAX_WIDTH * MAX_HEIGHT);
+var TEMP_SCENE_BUFFER = [_:0]u8{0} ** (MAX_WIDTH * MAX_HEIGHT);
+
 var width: u32 = 0;
 var height: u32 = 0;
 
-var prng = std.rand.DefaultPrng.init(0);
-var random = prng.random();
-var rand_seed: u64 = 0;
+var scene_width: u32 = 0;
+var scene_height: u32 = 0;
 
-var hour: u32 = 0;
+var paused: bool = false;
+var step: u32 = 0;
 
+// NOTE: Usage -
+// const msg = std.fmt.allocPrint(allocator, "", .{ }) catch return;
+// defer allocator.free(msg);
+// debug_print(msg.ptr, @intCast(msg.len));
 extern fn debug_print(message: [*]const u8, length: u8) void;
-
-export fn set_rand_seed(s: u64) void {
-    prng = std.rand.DefaultPrng.init(s);
-    random = prng.random();
-}
 
 export fn set_window_dimensions(w: u32, h: u32) void {
     width = w;
     height = h;
 
-    for (0..height) |i| {
-        for (0..width) |j| {
-            SCENE_BUFFER[i * width + j] = NO_CELL;
-        }
-    }
+    scene_width = width / CELL_SIZE;
+    scene_height = height / CELL_SIZE;
 }
 
 export fn get_output_buffer_pointer() *[OUTPUT_BUFFER_SIZE]u8 {
     return &OUTPUT_BUFFER;
 }
 
-var last_pixels_set = std.ArrayList(u32).init(allocator);
-
-const Cell = struct { type: u8, x: u32, y: u32, direction: f32, apical_distance: f32 };
-var cells = std.ArrayList(Cell).init(allocator);
-
-fn render_tree() void {
-    // for (last_pixels_set.items) |pixel_offset| {
-    //     OUTPUT_BUFFER[pixel_offset] = 0;
-    //     OUTPUT_BUFFER[pixel_offset + 1] = 0;
-    //     OUTPUT_BUFFER[pixel_offset + 2] = 0;
-    //     OUTPUT_BUFFER[pixel_offset + 3] = 0;
-    // }
-
-    // last_pixels_set.clearRetainingCapacity();
-
-    // for (cells.items) |c| {
-    //     if (c.type != NO_CELL) {
-    //     }
-    // }
+export fn pause() void {
+    paused = !paused;
 }
 
-const PI = 3.14;
+export fn mouse_click(x: u32, y: u32) void {
+    SCENE_BUFFER[(y / CELL_SIZE * scene_width + x / CELL_SIZE)] = 1;
+}
 
-export fn init() void {}
+export fn setup() void {
+    var y: usize = scene_height / 2;
+    const x: usize = scene_width / 2;
+    SCENE_BUFFER[(y * scene_width + x)] = 1;
 
-export fn grow_tree() void {
-    hour += 1;
+    y += 1;
+    SCENE_BUFFER[(y * scene_width + x)] = 1;
 
-    if (cells.items.len == 0) {
-        const x = @divFloor(width, 2);
-        const y = 0;
-        cells.append(Cell{ .type = BRANCH_CELL, .x = x, .y = y, .direction = 1.14, .apical_distance = 0 }) catch return;
-        SCENE_BUFFER[y * width + x] = BRANCH_CELL;
+    y += 1;
+    SCENE_BUFFER[(y * scene_width + x)] = 1;
+}
+
+export fn draw() void {
+    @memset(&OUTPUT_BUFFER, 0);
+
+    for (0..scene_width * scene_height) |c_i| {
+        if (SCENE_BUFFER[c_i] == 1) {
+            const sx = c_i % scene_width;
+            const sy = c_i / scene_width;
+            for (0..CELL_SIZE) |c_xi| {
+                for (0..CELL_SIZE) |c_yi| {
+                    const x = sx * CELL_SIZE + c_xi;
+                    const y = sy * CELL_SIZE + c_yi;
+                    draw_pixel(x, y, .{ .r = 0, .g = 255, .b = 255, .a = 255 });
+                }
+            }
+        }
     }
 
-    for (cells.items) |c| {
-        if (c.type == BRANCH_CELL) {
-            var x: u32 = undefined;
-            var y: u32 = undefined;
-            var apical_distance = c.apical_distance;
-            var direction = c.direction;
+    if (!paused) {
+        for (0..scene_width * scene_height) |c_i| {
+            var live_neighbors: usize = 0;
 
-            const random_growth = std.rand.Random.float(random, f32);
+            const i_c_i: isize = @intCast(c_i);
+            const i_scene_width: isize = @intCast(scene_width);
 
-            if (random_growth < 0.001) {
-                direction = std.rand.Random.float(random, f32) * (2 * PI);
+            // zig fmt: off
+            const neighbors = [8]isize{
+                i_c_i + 1,
+                i_c_i - 1,
+                i_c_i + i_scene_width,
+                i_c_i - i_scene_width,
+                i_c_i + i_scene_width + 1,
+                i_c_i + i_scene_width - 1,
+                i_c_i - i_scene_width + 1,
+                i_c_i - i_scene_width - 1
+            };
+            // zig fmt: on
 
-                const step: f32 = 2;
-                const dx: f32 = @cos(direction);
-                const dy: f32 = @sin(direction);
+            for (neighbors) |n| {
+                if (SCENE_BUFFER[@intCast(@mod(n, @as(isize, @intCast(scene_height * scene_width))))] == 1) {
+                    live_neighbors += 1;
+                }
+            }
 
-                // _ = step;
-                // _ = dx;
-                // _ = dy;
-                x = @intCast(@max(0, @as(i32, @intCast(c.x)) + @as(i32, @intFromFloat(step * dx))));
-                y = @intCast(@max(0, @as(i32, @intCast(c.y)) + @as(i32, @intFromFloat(step * dy))));
-                apical_distance = 0;
-            } else if (random_growth < (0.4 * (1 / @max(1, 10 * c.apical_distance)))) { // grow branch outwards
-                direction = c.direction;
-
-                if (std.rand.Random.float(random, f32) < 0.5) {
-                    x = @intCast(@max(0, @as(i32, @intCast(c.x)) + @as(i32, if (@cos(c.direction) > 0) 1 else -1)));
-                    y = c.y;
+            if (SCENE_BUFFER[c_i] == 1) {
+                if (live_neighbors < 2) {
+                    TEMP_SCENE_BUFFER[c_i] = 0;
+                } else if (live_neighbors > 3) {
+                    TEMP_SCENE_BUFFER[c_i] = 0;
                 } else {
-                    y = @intCast(@max(0, @as(i32, @intCast(c.y)) + @as(i32, if (@sin(c.direction) > 0) 1 else -1)));
-                    x = c.x;
+                    TEMP_SCENE_BUFFER[c_i] = 1;
                 }
-                apical_distance = c.apical_distance + 1;
-            } else { // grow forward
-                direction = c.direction;
-                const threshold = 0.5;
-
-                var move_x: i32 = 0;
-                var move_y: i32 = 0;
-
-                if (@abs(@cos(c.direction)) > threshold) {
-                    move_x = if (@cos(c.direction) > 0) 1 else -1;
+            } else if (SCENE_BUFFER[c_i] == 0) {
+                if (live_neighbors == 3) {
+                    TEMP_SCENE_BUFFER[c_i] = 1;
+                } else {
+                    TEMP_SCENE_BUFFER[c_i] = 0;
                 }
-
-                if (@abs(@sin(c.direction)) > threshold) {
-                    move_y = if (@sin(c.direction) > 0) 1 else -1;
-                }
-
-                x = @intCast(@max(0, @as(i32, @intCast(c.x)) + move_x));
-                y = @intCast(@max(0, @as(i32, @intCast(c.y)) + move_y));
-
-                apical_distance = c.apical_distance;
-            }
-
-            if (y < height and x < width and SCENE_BUFFER[y * width + x] == NO_CELL) {
-                cells.append(Cell{ .type = BRANCH_CELL, .x = x, .y = y, .direction = direction, .apical_distance = apical_distance }) catch return;
-                SCENE_BUFFER[y * width + x] = BRANCH_CELL;
-                draw_pixel(x, y, Color{ .r = 255, .g = 255, .b = 255, .a = 255 });
             }
         }
-    }
 
-    // clear cells that are surrounded and so can't possibly grow for performance
-    for (0..cells.items.len) |c_i| {
-        if (c_i < cells.items.len) {
-            const x = cells.items[c_i].x;
-            const y = cells.items[c_i].y;
-            if ((x > 0 and SCENE_BUFFER[y * width + (x - 1)] != NO_CELL) and
-                (x < width - 1 and SCENE_BUFFER[(y) * width + (x + 1)] != NO_CELL) and
-                (y > 0 and SCENE_BUFFER[(y - 1) * width + x] != NO_CELL) and
-                (y < height - 1 and SCENE_BUFFER[(y + 1) * width + x] != NO_CELL) and
-                (y > 0 and x > 0 and SCENE_BUFFER[(y - 1) * width + (x - 1)] != NO_CELL) and
-                (y > 0 and x < width - 1 and SCENE_BUFFER[(y - 1) * width + (x + 1)] != NO_CELL) and
-                (y < height - 1 and x > 0 and SCENE_BUFFER[(y + 1) * width + (x - 1)] != NO_CELL) and
-                (y < height - 1 and x < width - 1 and SCENE_BUFFER[(y + 1) * width + (x + 1)] != NO_CELL))
-            {
-                defer _ = cells.swapRemove(c_i);
-            }
-        }
+        SCENE_BUFFER = TEMP_SCENE_BUFFER;
+        step += 1;
     }
-
-    render_tree();
 }
 
 fn draw_pixel(x: u32, y: u32, c: Color) void {
     if (y < height and x < width) {
         const pixel: u32 = (height - y - 1) * width + x;
         const pixel_offset: u32 = pixel * 4;
-
-        last_pixels_set.append(pixel_offset) catch return;
 
         OUTPUT_BUFFER[pixel_offset] = c.r;
         OUTPUT_BUFFER[pixel_offset + 1] = c.g;
