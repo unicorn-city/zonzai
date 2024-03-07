@@ -25,11 +25,22 @@ var scene_height: u32 = 0;
 var paused: bool = false;
 var step: u32 = 0;
 
+var dragging: bool = false;
+var mouseX: u32 = 0;
+var mouseY: u32 = 0;
+
+var SELECTED_PATTERN_BUFFER = [_]u8{ 'o', '!' } ++ [_]u8{0} ** 998;
+
 // NOTE: Usage -
 // const msg = std.fmt.allocPrint(allocator, "", .{ }) catch return;
 // defer allocator.free(msg);
 // debug_print(msg.ptr, @intCast(msg.len));
 extern fn debug_print(message: [*]const u8, length: u8) void;
+
+export fn alloc(length: u8) [*]const u8 {
+    const memory = allocator.alloc(u8, length) catch unreachable;
+    return memory.ptr;
+}
 
 export fn set_window_dimensions(w: u32, h: u32) void {
     width = w;
@@ -43,12 +54,30 @@ export fn get_output_buffer_pointer() *[OUTPUT_BUFFER_SIZE]u8 {
     return &OUTPUT_BUFFER;
 }
 
-export fn pause() void {
+export fn pause() bool {
     paused = !paused;
+    return paused;
 }
 
-export fn mouse_click(x: u32, y: u32) void {
-    SCENE_BUFFER[(y / CELL_SIZE * scene_width + x / CELL_SIZE)] = 1;
+export fn clear() void {
+    @memset(&SCENE_BUFFER, 0);
+}
+
+export fn click() void {
+    place_cells();
+}
+
+export fn set_dragging(isDragging: bool) void {
+    dragging = isDragging;
+}
+
+export fn move_mouse(x: u32, y: u32) void {
+    mouseX = x;
+    mouseY = y;
+}
+
+export fn select_pattern(rle: [*]const u8) void {
+    @memcpy(&SELECTED_PATTERN_BUFFER, rle);
 }
 
 export fn setup() void {
@@ -63,9 +92,61 @@ export fn setup() void {
     SCENE_BUFFER[(y * scene_width + x)] = 1;
 }
 
+fn place_cells() void {
+    var dx: usize = 0;
+    var dy: usize = 0;
+    var run_count: usize = 0;
+    var cell_value: u8 = 0;
+    for (SELECTED_PATTERN_BUFFER) |code| {
+        switch (code) {
+            '0'...'9' => {
+                run_count *= 10;
+                run_count += code - '0';
+                continue;
+            },
+            'o' => {
+                cell_value = 1;
+            },
+            'b' => {
+                cell_value = 0;
+            },
+            '!' => {
+                break;
+            },
+            '$' => {
+                dy += 1;
+                dx = 0;
+                run_count = 0;
+                continue;
+            },
+            else => unreachable,
+        }
+
+        for (0..@max(1, run_count)) |_| {
+            SCENE_BUFFER[(mouseY / CELL_SIZE + dy) * scene_width + mouseX / CELL_SIZE + dx] = cell_value;
+            dx += 1;
+        }
+        run_count = 0;
+    }
+}
+
 export fn draw() void {
     @memset(&OUTPUT_BUFFER, 0);
 
+    // Draw cursor
+    {
+        const sx = mouseX / CELL_SIZE;
+        const sy = mouseY / CELL_SIZE;
+        for (0..CELL_SIZE) |c_xi| {
+            for (0..CELL_SIZE) |c_yi| {
+                const x = sx * CELL_SIZE + c_xi;
+                const y = sy * CELL_SIZE + c_yi;
+                draw_pixel(x, y, .{ .r = 255, .g = 255, .b = 255, .a = 150 });
+            }
+        }
+    }
+
+    // Draw (live) cells
     for (0..scene_width * scene_height) |c_i| {
         if (SCENE_BUFFER[c_i] == 1) {
             const sx = c_i % scene_width;
@@ -125,6 +206,10 @@ export fn draw() void {
 
         SCENE_BUFFER = TEMP_SCENE_BUFFER;
         step += 1;
+    }
+
+    if (dragging) {
+        place_cells();
     }
 }
 

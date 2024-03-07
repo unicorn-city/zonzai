@@ -7,24 +7,41 @@
     <script defer src="./main.js"></script>
     <link rel="stylesheet" href="style.css" />
     <link rel="shortcut icon" href="#" type="image/x-icon" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap"
+      rel="stylesheet"
+    />
   </head>
 
   <body>
-    <p id="fps"></p>
-    <button id="pauseBtn">pause</button>
-    <canvas class="canvas"> </canvas>
+    <div class="gameContainer">
+      <div class="gameHeader">
+        <h1>Zonzai</h1>
+      </div>
+      <canvas class="canvas"> </canvas>
+      <div class="gameFooter">
+        <div class="gameControls">
+          <button id="pause-btn" class="btn">pause</button>
+          <button id="clear-btn" class="btn">clear</button>
+        </div>
+        <div id="pattern-palette"></div>
+        <p id="fps"></p>
+      </div>
+    </div>
 
-    <p style="color: white">
-      This is Conway's game of life, cells can be placed with the mouse. I'll
-      next add a menu of pre-made patterns that can be placed.
-    </p>
-    <p style="color: white">
-      There was a tree simulator here, but I removed it in the transition to a
-      cellular automata approach. Simulating plants is very difficult, yet I
-      just had the idea of a CA where cells store resources (like water) and
-      transfer them out to neighbors with osmosis. If a cell has an abundance of
-      nutrients it could grow a neighbor and if it has a derth it will die.
-      Still need to figure out how to model light and branching.
-    </p>
+    <div class="description">
+      <p>This is Conway's game of life. Cells can be placed with the mouse.</p>
+      <p>
+        There was a tree simulator here, but I removed it in the transition to a
+        cellular automata approach. Simulating plants is very difficult, yet I
+        just had the idea of a CA where cells store resources (like water) and
+        transfer them out to neighbors with osmosis. If a cell has an abundance
+        of nutrients it could grow a neighbor and if it has a derth it will die.
+        Still need to figure out how to model light and branching.
+      </p>
+    </div>
   </body>
 </html>
