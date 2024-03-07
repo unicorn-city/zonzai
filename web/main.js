@@ -65,13 +65,16 @@ const setCanvasDimensions = () => {
 
 window.addEventListener("resize", setCanvasDimensions)
 
-EXAMPLE_PATTERNS.forEach((p) => {
+EXAMPLE_PATTERNS.forEach((p, i) => {
   const patternButtonElement = document.createElement("button")
+  if (i == 0) {
+    patternButtonElement.style.outline = "2px solid white"
+  }
   patternButtonElement.classList.add("btn")
   patternButtonElement.innerText = p.name
   patternButtonElement.addEventListener("click", () => {
     // TODO: There's definitely a better way to do this w/o allocating
-    // cause I just copy it into the same fixed buffer
+    // cause I just copy it into the same wasm fixed buffer
     const rleBuffer = Uint8Array.from(
       Array.from(p.rle).map((letter) => letter.charCodeAt(0)),
     )
@@ -85,8 +88,13 @@ EXAMPLE_PATTERNS.forEach((p) => {
     mem.set(new Uint8Array(rleBuffer))
 
     instance.exports.select_pattern(ptr)
-    console.log(p.rle, p.rle.length)
+
+    for (const button of patternPaletteElement.children) {
+      button.style.outline = "none"
+    }
+    patternButtonElement.style.outline = "2px solid white"
   })
+
   patternPaletteElement.appendChild(patternButtonElement)
 })
 
