@@ -93,8 +93,8 @@ export fn setup() void {
 }
 
 fn place_cells() void {
-    var dx: usize = 0;
-    var dy: usize = 0;
+    var dx: isize = 0;
+    var dy: isize = 0;
     var run_count: usize = 0;
     var cell_value: u8 = 0;
     for (SELECTED_PATTERN_BUFFER) |code| {
@@ -114,7 +114,7 @@ fn place_cells() void {
                 break;
             },
             '$' => {
-                dy += 1;
+                dy -= @intCast(@max(1, run_count));
                 dx = 0;
                 run_count = 0;
                 continue;
@@ -122,8 +122,12 @@ fn place_cells() void {
             else => unreachable,
         }
 
+        const i_mouseY: isize = @intCast(mouseY);
+        const i_mouseX: isize = @intCast(mouseX);
+        const i_scene_width: isize = @intCast(scene_width);
+
         for (0..@max(1, run_count)) |_| {
-            SCENE_BUFFER[(mouseY / CELL_SIZE + dy) * scene_width + mouseX / CELL_SIZE + dx] = cell_value;
+            SCENE_BUFFER[@intCast(@mod((@divTrunc(i_mouseY, CELL_SIZE) + dy) * i_scene_width + (@divTrunc(i_mouseX, CELL_SIZE) + dx), @as(isize, @intCast(scene_height * scene_width))))] = cell_value;
             dx += 1;
         }
         run_count = 0;

@@ -18,11 +18,15 @@ const EXAMPLE_PATTERNS = [
     rle: "bob$2bo$3o!",
   },
   {
-    name: "70P23",
+    name: "Spider",
+    rle: "9bo7bo9b$3b2obobob2o3b2obobob2o3b$3obob3o9b3obob3o$o3bobo5bobo5bobo3bo$4b2o6bobo6b2o4b$b2o9bobo9b2ob$b2ob2o15b2ob2ob$5bo15bo!",
+  },
+  {
+    name: "70P23 Oscillator",
     rle: "24bo$12bo9b3o$o11b3o6bo$3o5b2o5bo5b2o$3bo4b2o4b2o$2b2o$19bobo$19bobo$3b2o14b3o3b2o$3b2o3b3o14b2o$8bobo$8bobo$26b2o$14b2o4b2o4bo$7b2o5bo5b2o5b3o$8bo6b3o11bo$5b3o9bo$5bo!",
   },
   {
-    name: "p24 gliderless LWSS gun",
+    name: "P24 Gliderless LWSS Gun",
     rle: "24b2o3b2o$2b2obo2bo15bobobo2bo$o2bob4o17bob4o$2o24bo2bo2b2o$4bob2obo9b2o3bobo3b2o2bo$2ob4ob2o9bo3b3o7b2o$o3bo12bobobob2o$b4o11bobo2bob2o$5b2o3b2o4bobob3o$3b4o3bobob2obobo$2bo3bo5bobo2bo12bo2bobo$bobo8bo3b2o10b2obob3o$bo2b2o3b3o8b2o7bo6bo$2b2obo4b2o8b2o6b2o5bo$5b3o4b3o5bo$6b2ob2o3b2o5bo7bo5b2o$b2ob2obob2o3b2o6b2o4bo6bo$obobo9b2o6b3o4b3obob2o$bo3b6o3bo14bobo2bo$7bo3bo9b2o$10bo10bo$10bo3bo6bo$6bo8bo$7b2o2bo3bo6bo2bo8bo2bo$5b2o9b2o8bo11bo$7bo5bo4bo3bo3bo7bo3bo$12bobo3bo4b4o8b4o$13bo4bo$7b2o3bo3b2o$6bobo3bo2bo$6bo4bo3bo$5b2o5bo2$8b2o8b2o$8bo2b6o2bo$9b2o6b2o$6b3o10b3o$6bo2bobo4bobo2bo$7b2o4b2o4b2o!",
   },
 ]
